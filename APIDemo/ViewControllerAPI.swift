@@ -1,64 +1,107 @@
 //
 //  ViewController.swift
-//  PaidDemo
+//  APIDemo
 //
-//  Created by Eran Guttentag on 5/3/16.
+//  Created by Eran Guttentag on 5/16/16.
 //  Copyright © 2016 obqa. All rights reserved.
 //
 
 import UIKit
-import OutbrainSDK
 import SafariServices
 
-class ViewController: UIViewController {
+class ViewControllerAPI: UIViewController {
 
-    @IBOutlet weak var parSwitch: UISwitch!
-    @IBOutlet weak var recsTable: UITableView!
-    @IBOutlet weak var staticLink: UIButton!
-    @IBOutlet weak var browserSegment: UISegmentedControl!
+    var uuid: String!
+    var recs: [RecElement]!
+    var refreshControl: UIRefreshControl!
     
-    var recs: [OBRecommendation] = [OBRecommendation]()
-    var refreshControll: UIRefreshControl!
-    let request: OBRequest = OBRequest.init(URL: "http://static-test.outbrain.com/gutte/blog/german1.html", widgetID: "SDK_2")
+    @IBOutlet weak var browserSegment: UISegmentedControl!
+    @IBOutlet weak var parameterSwitch: UISwitch!
+    @IBOutlet weak var uuidLabel: UILabel!
+    @IBOutlet weak var urlBtn: UIButton!
+    @IBOutlet weak var recsTable: UITableView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
-        self.refreshControll = UIRefreshControl()
-        refreshControll.addTarget(self, action: #selector(ViewController.loadRecs), forControlEvents: UIControlEvents.ValueChanged)
-        recsTable.addSubview(refreshControll)
+        generateID(uuidLabel)
+        urlBtn.setTitle("http://static-test.outbrain.com/gutte/blog/german5.html", forState: .Normal)
+        recs = [RecElement]()
+        
+        self.refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: #selector(ViewControllerAPI.loadRecs), forControlEvents: UIControlEvents.ValueChanged)
+        recsTable.addSubview(refreshControl)
         recsTable.dataSource = self
         recsTable.delegate = self
-        
-        Outbrain.initializeOutbrainWithPartnerKey("NANOWDGT01")
-        Outbrain.setTestMode(true)
-        
-        staticLink.setTitle("http://static-tes.outbrain.com/gutte/blog/german2.html", forState: .Normal)
     }
     
     override func viewDidAppear(animated: Bool) {
         super.viewDidAppear(true)
         self.navigationController?.setNavigationBarHidden(true, animated: true)
     }
-    
-    func loadRecs() {
-        recs.removeAll()
-        recsTable.reloadData()
-        Outbrain.fetchRecommendationsForRequest(request, withDelegate: self)
-    }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
+    
+    func loadRecs(){
+        recs.removeAll()
+        recsTable.reloadData()
+        let url = NSURL(string: "http://odb.outbrain.com/utils/get?key=NANOWDGT01&api_user_id=\(uuid)&url=http://static-test.outbrain.com/gutte/blog/german1.html&format=vjnc&testMode=true&widgetJSId=SDK_2&idx=0")
+        let request = NSURLRequest(URL: url!)
+        let task = NSURLSession.sharedSession().dataTaskWithRequest(request, completionHandler: {(data, response, error) in
+            if error == nil && (response as! NSHTTPURLResponse).statusCode == 200 {
+                do {
+                    let json = try NSJSONSerialization.JSONObjectWithData(data!, options: .MutableContainers)
+                    //NSLog("\(json.description)")
+                    let docs = json["response"]!!["documents"]!!["doc"] as! NSArray
+                    for doc in docs {
+                        let title = doc["content"] as! String
+                        let source = doc["source_display_name"] as! String
+                        let url = doc["url"] as! String
+                        let rec = RecElement(_content: title, _source: source, _url: url, isPaid: Bool(doc["pc_id"] != nil))
+                        self.recs.append(rec)
+                    }
+                }
+                catch let er as NSError? {
+                    NSLog("wrong \(er?.description)")
+                }
+            }
+            self.refreshControl.endRefreshing()
+            self.recsTable.reloadData()
+        })
+        task.resume()
+    }
 
+    
+    @IBAction func generateID(sender: AnyObject) {
+        uuid = generateID()
+        uuidLabel.text = uuid
+    }
+    
+    func generateID()->String{
+        var chars: [Character] = [Character].init(count: 36, repeatedValue: "0")
+        for i in 0...35 {
+            switch i {
+            case 8, 12, 16, 20:
+                chars[i] = "-"
+            default:
+                let rand = arc4random_uniform(40) + 10
+                let digit = String(rand, radix: 16, uppercase: true)
+                chars[i] = digit.characters.first!
+            }
+        }
+        return String(chars)
+    }
+    
     @IBAction func openLink(sender: UIButton) {
         let url = NSURL(string: sender.titleLabel!.text!)
         openBrowser(url!)
     }
-
+    
     func openBrowser(url: NSURL){
-        let newUrl = parSwitch.on ? appendQueryParameter(url) : url
+        let newUrl = parameterSwitch.on ? appendQueryParameter(url) : url
         if newUrl == nil {
             let alert = UIAlertController(title: "Parameter Append Error", message: "Could not append to \(url.absoluteString)", preferredStyle: .Alert)
             alert.addAction(UIAlertAction(title: "Got It !", style: .Cancel, handler: {
@@ -79,7 +122,7 @@ class ViewController: UIViewController {
             }
         }
     }
-    
+
     func appendQueryParameter(url: NSURL) -> NSURL?{
         let component = NSURLComponents(URL: url, resolvingAgainstBaseURL: false)
         let query = NSURLQueryItem(name: "mobileapp", value: "true")
@@ -93,14 +136,14 @@ class ViewController: UIViewController {
     }
 }
 
-extension ViewController: UITableViewDelegate {
+extension ViewControllerAPI: UITableViewDelegate {
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         let url = recs[indexPath.row].sourceURL
         openBrowser(url)
     }
 }
 
-extension ViewController: UITableViewDataSource {
+extension ViewControllerAPI: UITableViewDataSource {
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return recs.count
     }
@@ -117,17 +160,4 @@ extension ViewController: UITableViewDataSource {
     }
 }
 
-extension ViewController: OBResponseDelegate {
-    func outbrainDidReceiveResponseWithSuccess(response: OBRecommendationResponse!) {
-        NSLog("success \(response.recommendations.count)")
-        self.recs.insertContentsOf(response.recommendations as! [OBRecommendation], at: 0)
-        refreshControll.endRefreshing()
-        recsTable.reloadData()
-    }
-    
-    func outbrainResponseDidFail(response: NSError!) {
-        NSLog("failed \(response.localizedDescription)")
-        refreshControll.endRefreshing()
-    }
-}
 
