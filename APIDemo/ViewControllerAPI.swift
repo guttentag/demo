@@ -28,6 +28,11 @@ class ViewControllerAPI: UIViewController {
         urlBtn.setTitle("http://static-test.outbrain.com/gutte/blog/german5.html", forState: .Normal)
         recs = [RecElement]()
         
+        
+        if UIApplication.sharedApplication().canOpenURL(NSURL(string: "googlechrome://url.com")!){
+            browserSegment.insertSegmentWithTitle("Chrome", atIndex: browserSegment.numberOfSegments, animated: false)
+        }
+        
         self.refreshControl = UIRefreshControl()
         refreshControl.addTarget(self, action: #selector(ViewControllerAPI.loadRecs), forControlEvents: UIControlEvents.ValueChanged)
         recsTable.addSubview(refreshControl)
@@ -54,7 +59,6 @@ class ViewControllerAPI: UIViewController {
             if error == nil && (response as! NSHTTPURLResponse).statusCode == 200 {
                 do {
                     let json = try NSJSONSerialization.JSONObjectWithData(data!, options: .MutableContainers)
-                    //NSLog("\(json.description)")
                     let docs = json["response"]!!["documents"]!!["doc"] as! NSArray
                     for doc in docs {
                         let title = doc["content"] as! String
@@ -65,7 +69,7 @@ class ViewControllerAPI: UIViewController {
                     }
                 }
                 catch let er as NSError? {
-                    NSLog("wrong \(er?.description)")
+                    print("wrong \(er?.description)")
                 }
             }
             self.refreshControl.endRefreshing()
@@ -101,7 +105,7 @@ class ViewControllerAPI: UIViewController {
     }
     
     func openBrowser(url: NSURL){
-        let newUrl = parameterSwitch.on ? appendQueryParameter(url) : url
+        var newUrl = parameterSwitch.on ? appendQueryParameter(url) : url
         if newUrl == nil {
             let alert = UIAlertController(title: "Parameter Append Error", message: "Could not append to \(url.absoluteString)", preferredStyle: .Alert)
             alert.addAction(UIAlertAction(title: "Got It !", style: .Cancel, handler: {
@@ -117,6 +121,11 @@ class ViewControllerAPI: UIViewController {
             case 1:
                 let vc = SFSafariViewController(URL: newUrl!)
                 presentViewController(vc, animated: true, completion: nil)
+            case 3:
+                newUrl = NSURL(string: (newUrl?.absoluteString)!.stringByReplacingOccurrencesOfString("http", withString: "googlechrome"))
+                fallthrough
+            case 2:
+                UIApplication.sharedApplication().openURL(newUrl!)
             default:
                 break
             }
@@ -131,7 +140,6 @@ class ViewControllerAPI: UIViewController {
         }
         component?.queryItems?.append(query)
         let newUrl = component?.URL
-        NSLog("\(url)\n\(newUrl)")
         return newUrl
     }
 }

@@ -30,6 +30,10 @@ class ViewController: UIViewController {
         recsTable.dataSource = self
         recsTable.delegate = self
         
+        if UIApplication.sharedApplication().canOpenURL(NSURL(string: "googlechrome://url.com")!) {
+            browserSegment.insertSegmentWithTitle("Chrome", atIndex: browserSegment.numberOfSegments, animated: false)
+        }
+        
         Outbrain.initializeOutbrainWithPartnerKey("NANOWDGT01")
         Outbrain.setTestMode(true)
         
@@ -58,7 +62,7 @@ class ViewController: UIViewController {
     }
 
     func openBrowser(url: NSURL){
-        let newUrl = parSwitch.on ? appendQueryParameter(url) : url
+        var newUrl = parSwitch.on ? appendQueryParameter(url) : url
         if newUrl == nil {
             let alert = UIAlertController(title: "Parameter Append Error", message: "Could not append to \(url.absoluteString)", preferredStyle: .Alert)
             alert.addAction(UIAlertAction(title: "Got It !", style: .Cancel, handler: {
@@ -74,6 +78,11 @@ class ViewController: UIViewController {
             case 1:
                 let vc = SFSafariViewController(URL: newUrl!)
                 presentViewController(vc, animated: true, completion: nil)
+            case 3:
+                newUrl = NSURL(string: (newUrl?.absoluteString)!.stringByReplacingOccurrencesOfString("http", withString: "googlechrome"))
+                fallthrough
+            case 2:
+                UIApplication.sharedApplication().openURL(newUrl!)
             default:
                 break
             }
@@ -88,7 +97,6 @@ class ViewController: UIViewController {
         }
         component?.queryItems?.append(query)
         let newUrl = component?.URL
-        NSLog("\(url)\n\(newUrl)")
         return newUrl
     }
 }
@@ -119,14 +127,14 @@ extension ViewController: UITableViewDataSource {
 
 extension ViewController: OBResponseDelegate {
     func outbrainDidReceiveResponseWithSuccess(response: OBRecommendationResponse!) {
-        NSLog("success \(response.recommendations.count)")
+        print("success \(response.recommendations.count)")
         self.recs.insertContentsOf(response.recommendations as! [OBRecommendation], at: 0)
         refreshControll.endRefreshing()
         recsTable.reloadData()
     }
     
     func outbrainResponseDidFail(response: NSError!) {
-        NSLog("failed \(response.localizedDescription)")
+        print("failed \(response.localizedDescription)")
         refreshControll.endRefreshing()
     }
 }
