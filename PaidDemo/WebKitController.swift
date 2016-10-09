@@ -8,16 +8,17 @@
 
 import UIKit
 import WebKit
+import OutbrainSDK
 
 class WebKitController: UIViewController {
-    let webKit = WKWebView()
+    let webKit = OBWKWebview()
 
     override func loadView() {
         view = webKit
         webKit.allowsBackForwardNavigationGestures = true
     }
 
-    override func viewDidAppear(animated: Bool) {
+    override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(true)
         self.navigationController?.setNavigationBarHidden(false, animated: true)
     }

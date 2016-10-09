@@ -10,6 +10,8 @@
 #import <OutbrainSDK/OBProtocols.h>
 
 
+
+@class OBLabel;
 @class OBRequest;
 @class OBResponse;
 @class OBRecommendation;
@@ -17,27 +19,25 @@
 // The current version of the sdk
 extern NSString * const OB_SDK_VERSION;
 
+extern NSString * const kCWV_CONTEXT_FLAG;
+extern NSString *const kIS_COOKIES_ENABLE_KEY;
+
+#define SYSTEM_VERSION_LESS_THAN(v)  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] == NSOrderedAscending)
+
 /**
  @brief OBSDK's main interface; for fetching content recommendations and reporting clicks.
  
  The Outbrain SDK must be initialized and registered (by calling __initializeOutbrainWithPartnerKey__) \n
 	when your app is initialized.\n
  Call __fetchRecommendationsForRequest__ to retrieve content recommendations.\n
- Call __getOriginalContentURLAndRegisterClickForRecommendation__ to translate a recommendation to the original URL and register a click on the recommendation.
  
- @note Please see the "Outbrain Android SDK Programming Guide" for more detailed explanations about how to integrate with Outbrain.
+ @note Please see the "Outbrain iOS SDK Programming Guide" for more detailed explanations about how to integrate with Outbrain.
  
  **/
 @interface Outbrain : NSObject
 
 /** @section Initialize **/
 
-/**
- *  @brief Deprecated; please use initializeOutbrainWithPartnerKey.
- *
- *  @see initializeOutbrainWithPartnerKey
- */
-+ (void)initializeOutbrainWithConfigFile:(NSString *)pathToFile;
 
 /**
  *  @brief Initializes Outbrain with the partner key you've received from your Outbrain Account Manager.
@@ -77,25 +77,43 @@ extern NSString * const OB_SDK_VERSION;
                           withDelegate:(__weak id<OBResponseDelegate>)delegate;
 
 
+/** @section Viewability **/
+
+/**
+ * @brief Register OBLabel with the corresponding widgetId and url of the current page
+ *
+ * OBLabel is the view publisher should place in the header of a recommandations view widget.
+ * This function Registers the OBLabel with the corresponding widgetId and url of the screen
+ * so that analytics reports to the server will match with the actual data the user used in the app.
+ * (See the Outbrain Journal sample app for an example of how to do this.)
+ *
+ * @param widgetId - The Widget Id to be associated with this OBLabel
+ * @param url - The URL that the user is currently viewing
+ * @return a new instance of OBLabel which associated with the widget id
+ * @note The calling method is responsible on setting the frame for the returned view
+ **/
++ (void) registerOBLabel:(OBLabel *)label withWidgetId:(NSString *)widgetId andUrl:(NSString *)url;
+
+
 /** @section Click Handling **/
 
 /**
- * @brief Maps the given OBRecommendation object to the original URL, and registers the click.
+ * @brief Maps the given OBRecommendation object to the URL, and for organic recommendation, register the click to traffic.outbrain
  *
- * This function reports a click on a recommendation, and returns the recommendation's original web URL.
+ * This function returns the recommendation's URL and for organic recommendation, register the click to traffic.outbrain
  * Open paid links in a web view or external browser.\n
  * In the case of an organic link, translate the web URL into a mobile URL (if necessary) and show the content natively. \n
  * (See the Outbrain Journal sample app for an example of how to do this.)
  *
  * @param recommendation - a pointer to the the OBRecommendation object representing the recommendation that has been clicked.
- * @note If you open a new view as a result of the user clicking on a recommendation, first call this method to report the click in the original view.
+ * @note If you open a new view as a result of the user clicking on a recommendation, call this method to get the URL.
  * @note It is recommended that your app hold the OBRecommendationResponse object as an instance variable in the Activity.
  *
  * @return The web URL to redirect to.
  * @note If it's necessary to map the web URL to a mobile URL, this must be done in your code.
  * @see OBRecommendation
  **/
-+ (NSURL *)getOriginalContentURLAndRegisterClickForRecommendation:(OBRecommendation *)recommendation;
++ (NSURL *)getUrl:(OBRecommendation *)recommendation;
 
 /**
  * @brief Activates/deactivates the Outbrain test mode.
